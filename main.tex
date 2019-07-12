@@ -1,12 +1,13 @@
 \documentclass[]{article}
 
 \usepackage{listings}
+\usepackage{appendix}
 
 \def\code#1{\texttt{#1}}
 
 %opening
 \title{Creating a SQL Engine for NoSQL Databases}
-\author{Charles Hathaway, Narayanan Iyer, KS Bhaskar}
+\author{Charles Hathaway, Jon Badiali, Narayanan Iyer, KS Bhaskar}
 
 \begin{document}
 
@@ -30,22 +31,11 @@ Each of these phases is explored in detail in the following sections.
 
 Throughout this document, we make use of examples referencing a sample schema.
 This schema is intentionally very simple, allowing us to keep the sample queries and generated plans small and manageable.
-Please see figure \ref{fig:intro_names_schema} for the source DDL, and figure \ref{fig:into_names_data} for the data we use when executing these queries.
+Please see listing \ref{fig:intro_names_schema} for the source DDL, and listing \ref{fig:into_names_data} for the data we use when executing these queries.
 
-Note that the GLOBAL keyword in figure \ref{fig:intro_names_schema} is explained in section \ref{sec:parsing}.
+Note that the GLOBAL keyword in listing \ref{fig:intro_names_schema} is explained in section \ref{sec:parsing}.
 For now, just know that it is glue connecting the underlying M database to the relational schema.
 
-\begin{figure}
-	\lstinputlisting{figures/intro_names_schema.sql}
-	\caption{Schema used throughout this paper for sample queries}
-	\label{fig:intro_names_schema}
-\end{figure}
-
-\begin{figure}
-	\lstinputlisting{figures/intro_names_data.zwr}
-	\caption{Source data used for this paper; in YottaDB ZWR format}
-	\label{fig:into_names_data}
-\end{figure}
 
 \section{Background Information}
 
@@ -73,6 +63,15 @@ Later, optimizations are done on this tree which do things such as:
 
 Before performing any optimizations, Octo converts the parsed SQL expression from the previous stage into a logical plan.
 This logical plan is represented as a binary tree, where each element in the tree either has children, the type of children is dependent upon the type of element, and eventually terminates with a leaf node.
+It is during this phase that we:
+
+\begin{itemize}
+	\item Expand certain expressions to more normalized expressions
+	\item Replace references to derived tables with references to their output keys
+	\item Move JOIN conditions onto the WHERE condition
+	\item Recurse into subplans to perform logical plan generation and optimization
+\end{itemize}
+
 Consider figure \ref{fig:lp_before_optimizations} for an example of a logical plan.
 
 \begin{figure}
@@ -99,6 +98,113 @@ Walking down this tree in a depth-first fashion, we can see:
 	\item \code{LP\_OUTPUT} represents the output location of the parent \code{LP\_INSERT}, and in addition to a \code{LP\_KEY} which will eventually contain the final rowset, it also contains metadata about how the rowset is stored (as an index, as a series of keys rather than actual values, etc.)
 \end{itemize}
 
+Appendix listing \ref{app:lp_action_types.hd} lists all types of logical plan items, along with annotations.
+It is expected that additional items will be added as needed, and that the grammar used here will continue to evolve as additional needs are discovered.
 
+\subsection{Optimized Logical Plans}
+
+After the generated logical plan is verified for structure, the next stage in logical planning occurs; optimization.
+In this stage, Octo:
+
+\begin{itemize}
+	\item Inserts all keys needed to iterate on all joined tables into the \code{LP\_KEYS} section of the logical plan
+	\begin{itemize}
+		\item At this point, the ordering of the keys should be done such that the keys with the largest number of rows come first, and the fewest last. This allows us to simplify heuristics later to select which optimizations take preference over others
+	\end{itemize}
+	\item Walks through the conditions in the \code{LP\_SELECT\_OPTIONS}, and:
+	\begin{itemize}
+		\item Identifies places where we can perform optimizations, and alters the plan as needed
+		\item Reorders the boolean expression such that there are no longer any disjunctions, and instead all disjunctions are expanded into a normalized disjunctive form
+	\end{itemize}
+\end{itemize}
+
+The task of inserting the keys into logical plan for iteration is one place where future development efforts in Octo may be directed; it allows one to use heuristics to prioritize the optimizations that occur later on.
+Note that the use of these heurstics does not guarntee an optimal solution, and as a general case, this problem is one that does not have an answer.
+It has been shown to be NP-complete \cite{cook_complexity_1971}, and it's been shown that plans which propagate error are only marginally better than random guesses \cite{ioannidis_propagation_1991}.
+This assertion is based on the current state of Octo, in that it performs optimizations by iterating over the elements in the WHERE condition of the statement, and identifying expressions where at least one side of the expression can be 'fixed' to the other side.
+In this context, fixing means adjusting the logical plan such that a particular \code{LP\_KEY} changes from a type of \code{LP\_KEY\_ADVANCE} to \code{LP\_KEY\_FIX}, and the value field is populated with a pointer to the value the key is fixed too.
+
+In addition to fixing keys to values, we can also fix an arbitrary column to a value, and limit our iteration, using a cross index.
+Octo will automatically generate the cross index for any column it wants to use for an optimization.
+This results in a \code{LP\_KEY} being replaced with two \code{LP\_KEY}s, one of which will be fixed, and the other of which will iterate through all keys under a fixed value in the cross reference.
+Section \ref{sec:lp_xref_keys} goes into more details about how the cross reference is organized.
+
+It is important to note that it is not possible to perform \code{LP\_KEY\_FIX} optimizations on conditions which contain a disjunction.
+Consider the boolean expression:
+
+$lastName = "Cool"\ AND\ (firstName = "Zero"\ OR\ lastName = "Burn")$.
+
+It is obvious that we can not fix firstName to "Zero" in this case, since it would mean we can't ever match lastName = "Burn".
+To solve this problem, we convert the expression to normal disjunctive form.
+This results in an expression that looks like:
+
+$(lastName = "Cool"\ AND\ firstName = "Zero")\ OR\ (lastName = "Cool"\ AND\ lastName = "Burn")$.
+
+We are then able to split the expression apart, and construct a new logical plan which contains the UNION ALL of the two sets.
+Some care has to be taken to avoid matching rows which will be true for multiple subsets of the boolean expression, but would have only resulted in one row if we had not split the statement apart.
+Octo does in the physical planning phase by tracking which values of keys have matched a row, and only inserting data to the output key if we have not seen that combination of keys before.
+This is discussed in more detail in section \ref{sec:physical}.
+
+The example given here as an additional interesting characteristic; the second term of the expanded form will never be true.
+There can not be a case where lastName is equal to "Cool" and lastName is equal to "Burn".
+The entire boolean term could be dropped, saving us the work of iterating over some amount of the table looking for a case where both statements are true.
+Octo does not yet do this type of boolean optimization, and will likely rely on an open source solution to solve it.
+This problem is the NP-complete problem generally accepted as the boolean satisfaction problem, and discussed in many computer science works \cite{cook_complexity_1971}.
+
+\subsubsection{Cross Reference Keys} \label{sec:lp_xref_keys}
+
+Octo generates cross references to assist with performing optimization on columns which aren't keys, and aren't normally involved in iterating over the table.
+It does this by constructing a new value in the database, with the form described in listing \ref{fig:lp_lastname_xref}.
+
+The global name, \code{\%ydbocroxref}, followed by the name of the table the cross reference is for.
+After that comes the name of the column within that table.
+The value of this node is total count of the rows in the table.
+Next, for each unique value of that column within the table, we have a node with the total number of rows which match that column value.
+The children for each of those nodes will contain all components of tables key, which in the sample names table is a single column of an integer type.
+
+Using this organization, we can iterate on all nodes with a particular value for a column rather than iterate through all rows in the table to identify those which have the column value in question.
+
+\lstinputlisting[
+caption={Sample Cross Reference Keys},
+label=fig:lp_lastname_xref]
+{figures/lp_lastname_xref.zwr}
+
+\subsubsection{Related Source Files}
+
+The source files in Octo related to this phase are located under \code{src/optimization\_transforms/}, the most important files being:
+
+\begin{itemize}
+	\item \code{src/optimization\_transforms/logical\_plan.h}
+	\item \code{src/optimization\_transforms/optimize\_logical\_plan.c}
+	\item \code{src/optimization\_transforms/lp\_make\_normal\_disjunctive\_form.c}
+	\item \code{src/optimization\_transforms/lp\_opt\_fix\_key\_to\_const.c}
+	\item \code{src/optimization\_transforms/lp\_optimize\_where\_multi\_equals\_ands.c}
+	\item \code{src/optimization\_transforms/lp\_generate\_xref\_keys.c}
+\end{itemize}
+
+\section{Physical Planning} \label{sec:physical}
+
+\appendix
+\appendixpage
+\addappheadtotoc
+
+\section{Sample Schema and Data}
+
+\lstinputlisting[
+	caption={Schema used throughout this paper for sample queries},
+	label=fig:intro_names_schema]
+{figures/intro_names_schema.sql}
+
+\lstinputlisting[
+	caption={Source data used for this paper; in YottaDB ZWR format},
+	label=fig:into_names_data]
+{figures/intro_names_data.zwr}
+
+\section{Logical Plan Action Types}
+
+\lstinputlisting[caption={Annotated logical plan action types},label=app:lp_action_types.hd]{figures/lp_action_type.hd}
+
+\bibliographystyle{unsrt}
+\bibliography{biblo}
 
 \end{document}

@@ -1,0 +1,81 @@
+/****************************************************************
+ *								*
+ * Copyright (c) 2019 YottaDB LLC and/or its subsidiaries.	*
+ * All rights reserved.						*
+ *								*
+ *	This source code contains the intellectual property	*
+ *	of its copyright holder(s), and is made available	*
+ *	under a license.  If you do not know the terms of	*
+ *	the license, please stop and do not read further.	*
+ *								*
+ ****************************************************************/
+
+// Used to insert data into a table; including temporary tables
+LP_ACTION_TYPE(LP_INSERT)
+// Used to perform SET operations on logical plans
+LP_ACTION_TYPE(LP_SET_OPERATION)
+LP_ACTION_TYPE(LP_TABLE)
+LP_ACTION_TYPE(LP_TABLE_JOIN)
+LP_ACTION_TYPE(LP_OUTER_JOIN)
+LP_ACTION_TYPE(LP_COLUMN_LIST)
+LP_ACTION_TYPE(LP_COLUMN_ALIAS)
+LP_ACTION_TYPE(LP_COLUMN_LIST_ALIAS)
+// This is similiar to ALIAS, but for values from derived tables
+//  Gets followed by a KEY and a LP_VALUE indicating the piece num
+LP_ACTION_TYPE(LP_DERIVED_COLUMN)
+LP_ACTION_TYPE(LP_PIECE_NUMBER)
+LP_ACTION_TYPE(LP_VALUE)
+LP_ACTION_TYPE(LP_PROJECT)
+LP_ACTION_TYPE(LP_SELECT)
+LP_ACTION_TYPE(LP_SELECT_OPTIONS)
+LP_ACTION_TYPE(LP_KEYWORDS)
+// Start of they where subtree
+LP_ACTION_TYPE(LP_WHERE)
+LP_ACTION_TYPE(LP_CRITERIA)
+LP_ACTION_TYPE(LP_OUTPUT)
+// Start of the key subtree
+LP_ACTION_TYPE(LP_KEYS)
+// Each key is one of the below; the LP_KEY type is the start of a
+//  unique subkey
+LP_ACTION_TYPE(LP_KEY)
+LP_ACTION_TYPE(LP_KEY_FIX)
+LP_ACTION_TYPE(LP_KEY_ADVANCE)
+// These are different way of combining keys
+LP_ACTION_TYPE(LP_SET_UNION)
+LP_ACTION_TYPE(LP_SET_UNION_ALL)
+LP_ACTION_TYPE(LP_SET_EXCEPT)
+LP_ACTION_TYPE(LP_SET_EXCEPT_ALL)
+LP_ACTION_TYPE(LP_SET_INTERSECT)
+LP_ACTION_TYPE(LP_SET_INTERSECT_ALL)
+// Items for SET_OPERATION
+LP_ACTION_TYPE(LP_PLANS)
+LP_ACTION_TYPE(LP_SET_OPTION)
+LP_ACTION_TYPE(LP_FUNCTION_CALL)
+LP_ACTION_TYPE(LP_CASE)
+LP_ACTION_TYPE(LP_CASE_STATEMENT)
+LP_ACTION_TYPE(LP_CASE_BRANCH)
+LP_ACTION_TYPE(LP_CASE_BRANCH_STATEMENT)
+// The order of these must be maintained with BinaryOperation
+LP_ACTION_TYPE(LP_ADDITION)
+LP_ACTION_TYPE(LP_SUBTRACTION)
+LP_ACTION_TYPE(LP_DIVISION)
+LP_ACTION_TYPE(LP_MULTIPLICATION)
+LP_ACTION_TYPE(LP_CONCAT)
+LP_ACTION_TYPE(LP_BOOLEAN_OR)
+LP_ACTION_TYPE(LP_BOOLEAN_AND)
+LP_ACTION_TYPE(LP_BOOLEAN_IS)
+LP_ACTION_TYPE(LP_BOOLEAN_EQUALS)
+LP_ACTION_TYPE(LP_BOOLEAN_NOT_EQUALS)
+LP_ACTION_TYPE(LP_BOOLEAN_LESS_THAN)
+LP_ACTION_TYPE(LP_BOOLEAN_GREATER_THAN)
+LP_ACTION_TYPE(LP_BOOLEAN_LESS_THAN_OR_EQUALS)
+LP_ACTION_TYPE(LP_BOOLEAN_GREATER_THAN_OR_EQUALS)
+LP_ACTION_TYPE(LP_BOOLEAN_REGEX_SENSITIVE)
+LP_ACTION_TYPE(LP_BOOLEAN_REGEX_INSENSITIVE)
+LP_ACTION_TYPE(LP_BOOLEAN_IN)
+LP_ACTION_TYPE(LP_BOOLEAN_NOT_IN)
+// The order of these must be maintained with UnaryOperations
+LP_ACTION_TYPE(LP_FORCE_NUM)
+LP_ACTION_TYPE(LP_NEGATIVE)
+LP_ACTION_TYPE(LP_BOOLEAN_NOT)
+LP_ACTION_END(LP_INVALID_ACTION)
