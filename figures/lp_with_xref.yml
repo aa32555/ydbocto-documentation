@@ -1,0 +1,74 @@
+LP_INSERT: 
+  LP_PROJECT: 
+    LP_COLUMN_LIST: 
+      LP_WHERE: 
+        LP_COLUMN_ALIAS: NAMES(0).FIRSTNAME
+        LP_COLUMN_LIST_ALIAS: 
+        - type: STRING_LITERAL
+        - alias: FIRSTNAME
+    LP_SELECT: 
+      LP_TABLE_JOIN: 
+        LP_INSERT: 
+          LP_PROJECT: 
+            LP_COLUMN_LIST: 
+              LP_WHERE: 
+                LP_COLUMN_ALIAS: NAMES(3).LASTNAME
+              LP_COLUMN_LIST: 
+                LP_WHERE: 
+                  LP_COLUMN_ALIAS: NAMES(3).ID
+            LP_SELECT: 
+              LP_TABLE_JOIN: 
+                LP_TABLE: NAMES
+              LP_CRITERIA: 
+                LP_KEYS: 
+                  LP_KEY: 
+                  - table_name: NAMES
+                  - column_name: ID
+                  - unique_id: 3
+                  - method: LP_KEY_ADVANCE
+                  - xref_key: false
+                  - uses_xref_key: false
+                LP_SELECT_OPTIONS: 
+                  LP_WHERE: 
+                  LP_KEYWORDS: keywords
+          LP_OUTPUT: 
+            LP_KEY: 
+            - table_name: NAMES
+            - column_name: LASTNAME
+            - unique_id: 0
+            - method: LP_INSERT
+            - xref_key: true
+            - uses_xref_key: false
+      LP_CRITERIA: 
+        LP_KEYS: 
+          LP_KEY: 
+          - table_name: NAMES
+          - column_name: LASTNAME
+          - unique_id: 0
+          - method: LP_KEY_FIX
+          - xref_key: true
+          - uses_xref_key: false
+          - value:
+              LP_VALUE: Cool
+          LP_KEYS: 
+            LP_KEY: 
+            - table_name: NAMES
+            - column_name: ID
+            - unique_id: 0
+            - method: LP_KEY_ADVANCE
+            - xref_key: false
+            - uses_xref_key: true
+        LP_SELECT_OPTIONS: 
+          LP_WHERE: 
+            LP_BOOLEAN_EQUALS: 
+              LP_COLUMN_ALIAS: NAMES(0).LASTNAME
+              LP_VALUE: Cool
+          LP_KEYWORDS: keywords
+  LP_OUTPUT: 
+    LP_KEY: 
+    - table_name:  
+    - column_name:  
+    - unique_id: 2
+    - method: LP_KEY_ADVANCE
+    - xref_key: false
+    - uses_xref_key: false

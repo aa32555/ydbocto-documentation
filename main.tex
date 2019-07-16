@@ -4,6 +4,10 @@
 \usepackage{appendix}
 \usepackage{hyperref}
 
+% This is only possible with lualatex
+%\usepackage{fontspec}
+%\setmainfont[Ligatures=TeX]{Raleway}
+
 \def\code#1{\texttt{#1}}
 
 % New macro so we can easily reference source files
@@ -12,6 +16,7 @@
 %opening
 \title{Creating a SQL Engine for NoSQL Databases}
 \author{Charles Hathaway, Jon Badiali, Narayanan Iyer, KS Bhaskar}
+
 
 \begin{document}
 
@@ -46,9 +51,116 @@ For now, just know that it is glue connecting the underlying M database to the r
 
 \section{Background Information}
 
+% We should write something describing M globals here
+
 \section{Parsing} \label{sec:parsing}
 
-% We should write something describing M globals here
+The first step in handling a SQL query is to parse it.
+SQL has a standard, formalized by the American National Standards Institute, with revisions coming once every few years.
+One of the most common target standard versions in SQL-92 (the 1992 standard), as this includes most of what people expect from SQL, but does not contain many more complicated bits.
+Octo aimed for this version, using the SQL: The Standard Handbook \cite{cannan1993sql} as a reference manual, with the primary source for the grammar described at \url{https://github.com/ronsavage/SQL/blob/master/sql-92.bnf}\cite{ronsavage2003sql}.
+However, this grammar includes some structures which are not friendly towards the parsing generator selected, so the grammar was refactored in places to prevent parsing errors.
+For the current grammar, look at \gitlab{src/parser/parser.y}.
+
+The initial time frame for getting a working prototype did not allow for the development of a recursive descent parser, and performance concerns did not allow the use of newer parse-tree parsers (such as ANTLR \cite{parr2013definitive} \footnote{There is some contention about ANTLR vs Bison performance, and a judgment call was made based on small performance tests and community discussion}, and overall generalized LR parsers \cite{lang1974deterministic}).
+This, along with other constraints imposed by the development environment, forced Octo into a C toolchain, which required using tools such as YACC/Bison and Flex over more modern solutions.
+
+\subsection{Recap: LALR(1) Parsing Algorithm}
+
+The topic of parsing programming languages, and deriving semantic meaning from the parsed tree, is a complex one which often has several graduate level computer science classes devoted to it.
+Although parsing a SQL grammar doesn't share the same type of complexity as a class on compiler design, there are definite overlaps, and a solid foundation in this area will help with understanding the first few phases of the Octo pipeline.
+As such, readers are encouraged to read up on core programming language concepts in books such as Programming Language Pragmatics \cite{scott2000programming}.
+However, for the purposes of clarity, we will give a brief explanation about the nature of Octo's parser here to help with those hoping to gain insights from it.
+
+As described in section \ref{sec:parsing}, Octo uses YACC/Bison to read in a grammar and produce a LALR(1) parsing table.
+LALR(1) is a look head left-right parser, with 1 token of look ahead.
+It is very similiar to more general LR algorithms, which is what we describe below.
+The key difference is the disinction of states in the generated FSM.
+To understand the algorithm, we need to know a few terms.
+
+\begin{itemize}
+	\item Token -- a 'keyword' from the grammar which is represented in Bison as an enum value. This is the output of the lexing phase. These are also known as terminating symbols
+	\item Rule -- Anything that is not a token in the grammar, is a rule. A rule contains subrules, which can recurse or terminate in tokens. These are also known as non-terminating symbols
+	\item $FOLLOW$ set -- given a state, this is the list of token which can follow from this state
+	\item $FIRST$ set -- the first token which may appear in the grammar
+\end{itemize}
+
+\lstinputlisting[
+caption={Sample calculator grammar},
+label=fig:parser_sample_calc_grammar]
+{figures/parser_calc.y}
+
+Listing \ref{fig:parser_sample_calc_grammar} contains the sample grammar we will use for a concrete example of the algoritm.
+The first thing in this listing is a list of tokens which represent termianting symbol.
+For a real application, there would be a lexer (written, for example, flex) which parses an input stream and split it into tokens for Bison to consume.
+We define 5 tokens; PLUS, MINUS, MULT, DIV, and LITERAL.
+
+Shortly after, we have the rules that we use to define the grammar.
+To imagine how the parse table is constructed, we must first identify all possible states.
+We begin by capturing the $FIRST$ set.
+This is the set of tokens that can be the first tokens we encounter in our stream.
+If we trace through the grammar, we go $term \rightarrow factor \rightarrow LITERAL$, which yields a LITERAL token as a first token.
+We must also go down all possible paths in the grammar, so in addition to matching the first terminal in the factor rule, we delve into the term rule and go $\rightarrow term \rightarrow LITERAL$.
+Since this also yields a LITERAL token, our $FIRST$ set contains a single token: LITERAL.
+
+This brings us to the first field in our parse table.
+In this representation of the parse table, rows represent states, and columns represent tokens.
+
+\begin{center}
+	\begin{tabular}{| c | c | c |}
+		\hline
+		& LITERAL      & \\
+		\hline
+		state 0 & goto state 1 & \\
+		\hline
+	\end{tabular}
+\end{center}
+
+Next, we must calculate state 1's $FOLLOW$ set.
+Conceptually, this is just any token that can follow a literal; an easy (but non-rigorous) method to find it is to look for anything which can follow a LITERAL.
+For a more rigorous approach, look at programming language textbooks for a formal definition.
+
+In factor, we see LITERAL can be followed by factor, or nothing (aka, the end of the input string, aka $\epsilon$).
+Since we know factor can be a LITERAL, we must also include MULT and DIV.
+Through the same reasoning, we can determine that term can become a LITERAL, and we must include PLUS and MINUS.
+So our $FOLLOW$ set for state 0 is $\{MULT, DIV, PLUS, MINUS, \epsilon\}$.
+We can add some states to our table for this.
+
+\begin{center}
+	\begin{tabular}{| c | c | c | c | c | c | c | c |}
+		\hline
+		& LITERAL      & MULT & DIV & PLUS & MINUS & $\epsilon$ \\
+		\hline
+		state 0 & goto 1 & & & & & \\
+		state 1 &  & goto 2 & goto 2 & goto 3 & goto 3 & reduce \\
+		\hline
+	\end{tabular}
+\end{center}
+
+If we see the $\epsilon$ character, we know we are at the end of the input token stream, and can terminate the parse.
+If we are in state 1 and see the $\epsilon$, it means we saw a single LITERAL by itself.
+We can reduce (yield the first part of the parse; we no longer need to keep looking, a rule has been fully satisfied and can be removed from the stack).
+
+Then we begin filling out for each remaining state.
+
+\begin{center}
+	\begin{tabular}{| c | c | c | c | c | c | c | c |}
+		\hline
+		& LITERAL      & MULT & DIV & PLUS & MINUS & $\epsilon$ \\
+		\hline
+		state 0 & goto 1 & & & & & \\
+		state 1 &  & goto 2 & goto 2 & goto 3 & goto 3 & reduce \\
+		state 2 & reduce & & & & & \\
+		state 3 & reduce & goto 2 & goto 2 & goto 3 & goto 3 & \\
+		\hline
+	\end{tabular}
+\end{center}
+
+As we transition from state to state, we also 'shift' tokens off of the parse stream.
+This effectively consumes the token, and advances to the next rule.
+If we had a situation where 
+
+%% TODO: charles isn't done here, and there are a few errors above
 
 % prefix = lp_
 \section{Logical Planning}
@@ -191,6 +303,28 @@ Using this organization, we can iterate on all nodes with a particular value for
 caption={Sample Cross Reference Keys},
 label=fig:lp_lastname_xref]
 {figures/lp_lastname_xref.zwr}
+
+To construct this series of globals, Octo creates a new intermediate plan which is used to insert values into the database at a known global, in this case \%ydboctoxref.
+The table we are generating the cross reference for is removed from the logical plan, along with it's keys, and a new set of keys are inserted which will be used to iterate over the cross reference.
+The new set of keys will contain a total number of keys equal to the number of key components in the source table, plus one.
+The one additional key will have a method of LP\_KEY\_FIX.
+The new tables to be generated will be inserted into the logical plan so that they can be emitted during the physical planning phase, and their keys tagged as xref keys.
+This allows the physical planning to know that it needs to put some safeguards in place to prevent the cross reference getting populated multiple times, or running into a race condition that results in an incorrect cross reference.
+
+Consider listing \ref{fig:lp_with_xref}, which is a logical plan that has been optimized using a cross reference.
+Note how the LP\_SELECT has an LP\_INSERT under it; this subplan was generated to construct the cross reference shows in figure \ref{fig:lp_lastname_xref}.
+Also note the two keys under the LP\_KEYS section; one of these, NAMES.LASTNAME, is fixed (note method LP\_KEY\_FIX) to a specific value, while the other is of method LP\_KEY\_ADVANCE.
+The xref\_option under the first key indicates that this is a cross reference key, and the physical planner will emit M code to support iterating over the cross reference rather than the source table itself.
+The first key is fixed to say that will iterate only over the keys that are under the 'Cool' subscript of the cross reference.
+
+\lstinputlisting[caption={Logical plan with a single column cross refernece used: \texttt{select * from names where lastName = "Cool";}},label=fig:lp_with_xref]{figures/lp_with_xref.yml}
+
+It should be noted that special M code is generated to protect the cross reference from duplicate attempts to populate it, or skip the population if the reference already existed.
+It is kept up-to-date through the use of database triggers.
+
+The global variable \code{\%ydboctoocto("xref\_status","table name","column name")} is used to track the status of the cross reference.
+A value in this node indicates that the cross reference exists, and is being maintained.
+There are M-level locks within the routines that generate the initial cross reference to prevent race condition.
 
 \subsubsection{Related Source Files}
 
