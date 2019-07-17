@@ -93,7 +93,7 @@ caption={Sample calculator grammar},
 label=fig:parser_sample_calc_grammar]
 {figures/parser_calc.y}
 
-Listing \ref{fig:parser_sample_calc_grammar} contains the sample grammar we will use for a concrete example of the algoritm.
+Listing \ref{fig:parser_sample_calc_grammar} contains the sample grammar we will use for a concrete example of the algorithm.
 The first thing in this listing is a list of tokens which represent terminating symbols.
 For a real application, there would be a lexer (written, for example, flex) which parses an input stream and splits it into tokens for Bison to consume.
 We define 5 tokens; PLUS, MINUS, MULT, DIV, and LITERAL.
@@ -181,17 +181,17 @@ See figure \ref{fig:parser_generated_graph} for the generated state diagram of t
 % prefix = lp_
 \section{Logical Planning}
 
-Logical planning is where a majority of the complexity of the SQL engine is located in this design; it includes things such as boolean expression expansion and reordering, converting JOIN's to a series of key iterations, transforming OUTER JOINs to a series of SET operations, and things of the like.
+Logical planning is where a majority of the complexity of the SQL engine is located in this design; it includes things such as boolean expression expansion and reordering, converting JOINs to a series of key iterations, transforming OUTER JOINs to a series of SET operations, and things of the like.
 
 In Octo, logical planning first takes the data structures representing the parsed SQL query, and transforms it into a binary tree.
 This binary tree is what we mean when we talk about the logical plan.
 Later, optimizations are done on this tree which do things such as:
 
 \begin{enumerate}
-	\item Load keys from tables and insert them in a particular order to the 'keys' section of the logical plan
-	\item Update keys to have specific advanced techniques, such as fixing them to a particular value if we know the boolean condition of the query requires the key to have that value
-	\item Replace keys with cross-reference keys if we can perform an optimization on a column other than a key column
-	\item Normalize boolean expressions to have no disjunctions, which would prevent other optimizations from taking place
+	\item Load keys from tables and insert them in a particular order to the 'keys' section of the logical plan.
+	\item Update keys to have specific advanced techniques, such as fixing them to a particular value if we know the boolean condition of the query requires the key to have that value.
+	\item Replace keys with cross-reference keys if we can perform an optimization on a column other than a key column.
+	\item Normalize boolean expressions to have no disjunctions, which would prevent other optimizations from taking place.
 \end{enumerate}
 
 These items are explained in detail in section \ref{sec:lp_optimization}.
@@ -203,23 +203,23 @@ This logical plan is represented as a binary tree, where each element in the tre
 It is during this phase that we:
 
 \begin{itemize}
-	\item Expand certain expressions to more normalized expressions
+	\item Expand certain expressions to more normalized expressions.
 	\begin{itemize}
-		\item Specifically, much of this work is done in lp\_generate\_where \gitlab{src/optimization\_transforms/lp\_generate\_where.c}, and includes converting IN lists (i.e., \code{column\ IN\ ('1', '2', '3')}) into a series of disjunctive OR statements which we can later optimize
-		\item If we detect a regex operator here with a second argument that starts with a \code{\^}, ends with a \code{\$}, and has no other regex characters, we convert it to a EQUALS statement
-		\item Several \code{Sql*} structures (such as \code{SqlValue}) are encapsulated in \code{LP\_} structures (such as \code{LP\_VALUE})
+		\item Specifically, much of this work is done in lp\_generate\_where \gitlab{src/optimization\_transforms/lp\_generate\_where.c}, and includes converting IN lists (i.e., \code{column\ IN\ ('1', '2', '3')}) into a series of disjunctive OR statements which we can later optimize.
+		\item If we detect a regex operator here with a second argument that starts with a \code{\^}, ends with a \code{\$}, and has no other regex characters, we convert it to a EQUALS statement.
+		\item Several \code{Sql*} structures (such as \code{SqlValue}) are encapsulated in \code{LP\_} structures (such as \code{LP\_VALUE}).
 	\end{itemize}
-	\item Replace references to derived tables with references to their output keys
+	\item Replace references to derived tables with references to their output keys.
 	\begin{itemize}
-		\item Calls in \code{generate\_logical\_plan} to \code{replace\_table\_references}\gitlab{src/replace\_table\_references.c} are the primary means by which this happens, but calls to \\ \code{lp\_replace\_derived\_table\_references}\gitlab{src/optimization\_transforms/lp\_replace\_derived\_table\_references.c} can also replace code in some cases
+		\item Calls in \code{generate\_logical\_plan} to \code{replace\_table\_references}\gitlab{src/replace\_table\_references.c} are the primary means by which this happens, but calls to \\ \code{lp\_replace\_derived\_table\_references}\gitlab{src/optimization\_transforms/lp\_replace\_derived\_table\_references.c} can also replace code in some cases.
 	\end{itemize}
-	\item Move JOIN conditions onto the WHERE condition
+	\item Move JOIN conditions onto the WHERE condition.
 	\begin{itemize}
-		\item This is done in \code{generate\_logical\_plan}, and relies on helper functions such as \code{lp\_join\_where}\gitlab{src/optimization\_transforms/lp\_join\_where.c} to keep the code manageable
+		\item This is done in \code{generate\_logical\_plan}, and relies on helper functions such as \code{lp\_join\_where}\gitlab{src/optimization\_transforms/lp\_join\_where.c} to keep the code manageable.
 	\end{itemize}
-	\item Recurse into subplans to perform logical plan generation and optimization
+	\item Recurse into subplans to perform logical plan generation and optimization.
 	\begin{itemize}
-		\item In cases where we encounter a subplan, either through walking trees in \code{lp\_generate\_where} or through SET operations (in which case we go through \code{lp\_generate\_set\_logical\_plan}\gitlab{src/optimization\_transforms/lp\_generate\_set\_logical\_plan.c})
+		\item In cases where we encounter a subplan, either through walking trees in \code{lp\_generate\_where} or through SET operations (in which case we go through \code{lp\_generate\_set\_logical\_plan}\gitlab{src/optimization\_transforms/lp\_generate\_set\_logical\_plan.c}).
 	\end{itemize}
 \end{itemize}
 
@@ -264,14 +264,14 @@ In this stage, Octo:
 	\end{itemize}
 	\item Walks through the conditions in the \code{LP\_SELECT\_OPTIONS}, and:
 	\begin{itemize}
-		\item Identifies places where we can perform optimizations, and alters the plan as needed
-		\item Reorders the boolean expression such that there are no longer any disjunctions, and instead all disjunctions are expanded into a normalized disjunctive form
+		\item Identifies places where we can perform optimizations, and alters the plan as needed.
+		\item Reorders the boolean expression such that there are no longer any disjunctions, and instead all disjunctions are expanded into a normalized disjunctive form.
 	\end{itemize}
 \end{itemize}
 
 The task of inserting the keys into logical plan for iteration is one place where future development efforts in Octo may be directed; it allows one to use heuristics to prioritize the optimizations that occur later on.
-Note that the use of these heurstics does not guarantee an optimal solution, and as a general case, this problem is one that does not have an answer.
-It has been shown to be NP-complete \cite{cook_complexity_1971}, and it's been shown that plans which propagate errors are only marginally better than random guesses \cite{ioannidis_propagation_1991}.
+Note that the use of these heuristics does not guarantee an optimal solution, and as a general case, this problem is one that does not have an answer.
+It has been shown to be NP-complete \cite{cook_complexity_1971}, and it has been shown that plans which propagate errors are only marginally better than random guesses \cite{ioannidis_propagation_1991}.
 This assertion is based on the current state of Octo, in that it performs optimizations by iterating over the elements in the WHERE condition of the statement, and identifying expressions where at least one side of the expression can be 'fixed' to the other side.
 In this context, fixing means adjusting the logical plan such that a particular \code{LP\_KEY} changes from a type of \code{LP\_KEY\_ADVANCE} to \code{LP\_KEY\_FIX}, and the value field is populated with a pointer to the value to which the key is fixed.
 
@@ -333,7 +333,7 @@ Also note the two keys under the LP\_KEYS section; one of these, NAMES.LASTNAME,
 The xref\_option under the first key indicates that this is a cross reference key, and the physical planner will emit M code to support iterating over the cross reference rather than the source table itself.
 The first key is fixed to say that will iterate only over the keys that are under the 'Cool' subscript of the cross reference.
 
-\lstinputlisting[caption={Logical plan with a single column cross refernece used: \texttt{select * from names where lastName = "Cool";}},label=fig:lp_with_xref]{figures/lp_with_xref.yml}
+\lstinputlisting[caption={Logical plan with a single column cross reference used: \texttt{select * from names where lastName = "Cool";}},label=fig:lp_with_xref]{figures/lp_with_xref.yml}
 
 It should be noted that special M code is generated to protect the cross reference from duplicate attempts to populate it, or skip the population if the reference already existed.
 It is kept up-to-date through the use of database triggers.
@@ -373,10 +373,10 @@ They are unique, but only to the table instatiation; if that table has multiple 
 When the physical plan gets rendered, this unique identifier is used within the \code{\%ydboctocursor} structure to track the value of the keys as we iterate over them.
 When we want to fetch a value for a column which is not a key (including a cross reference key), we render some M code which is responsible for fetching the value \gitlab{src/m\_templates/tmpl\_column\_reference.ctemplate}; this will pull in various bits of information from the DDL which is responsible for informing Octo about how to get the value out of the database.
 
-For much of the work done in the fist optimizations (equjoin optimizations, use of the cross-reference, and inequality optimizations) we rely on the order of the keys in the \code{LP\_KEYS} listing to prioritize which keys get fixed.
+For much of the work done in the first optimizations (equi-join optimizations, use of the cross-reference, and inequality optimizations) we rely on the order of the keys in the \code{LP\_KEYS} listing to prioritize which keys get fixed.
 Generally, it is not possible to fix a key to a value which is not yet defined; in the logical plan, we can identify keys that will be available by looking at their ordering in the \code{LP\_KEYS} section.
 To facilitate this, a table is created during the optimization phase which maps a unique id to its position in that list \gitlab{src/optimization\_transforms/lp\_optimize\_where\_multi\_equals\_ands.c}.
-However, the only keys known at this point are the keys beloning to this subplan, which means that if there are references to a parent query, we will see an undefined value in this table.
+However, the only keys known at this point are the keys belonging to this subplan, which means that if there are references to a parent query, we will see an undefined value in this table.
 To solve this, we initialize this table to a small value, indicating that any keys not found in the table will be available before whatever keys we are fixing.
 This is true since any plans including references to parent plans will be deferred during physical plan generation, as required to actually access the columns using the means discussed above.
 
@@ -397,18 +397,18 @@ Listing \ref{fig:tmpl_key.ctemplate} shows an example C template file.
 The key syntax to be aware of:
 
 \begin{enumerate}
-	\item An 'open C section' delimiter looks like \code{\{\%}, and must eventually be followed by a 'clode C section' delimiter (which is \code{\%\}})
-	\item An 'output variable' string may occur anywhere outside of a C section, and looks like \code{\{\{ myVariable \}\}}. The enclosed variable will be replaced with the value of that variable when it is outputted
+	\item An 'open C section' delimiter looks like \code{\{\%}, and must eventually be followed by a 'closed C section' delimiter (which is \code{\%\}}).
+	\item An 'output variable' string may occur anywhere outside of a C section, and looks like \code{\{\{ myVariable \}\}}. The enclosed variable will be replaced with the value of that variable when it is outputted.
 	\begin{itemize}
-		\item Optionally, a format tag may by applied to the variable to indicate how snprintf should flag it prior to outputting, like \code{\{\{ myVariable|\%d \}\}}
+		\item Optionally, a format tag may by applied to the variable to indicate how snprintf should flag it prior to outputting, like \code{\{\{ myVariable|\%d \}\}}.
 	\end{itemize}
-	\item All other text outside a C section is outputted exactly as it appears, and will be escaped (if needed) so it does not interfere with quoting in the resulting C file
+	\item All other text outside a C section is outputted exactly as it appears, and will be escaped (if needed) so it does not interfere with quoting in the resulting C file.
 \end{enumerate}
 
 There are a number of macros to assist in the writing of the template files, whose key contributions are to pass along a number of implied variables between functions which track the position of the 'cursor' in the output buffer.
 These get updated whenever a non-C code section occurs, and are automatically passed to other template routines when they are called via a \code{TMPL} macro.
 
-C template files are compiled using the pparser executable, which is defined in the \code{CMakeLists.txt} file used to build Octo \gitlab{src/CMakeLists.txt}.
+C template files are compiled using the parser executable, which is defined in the \code{CMakeLists.txt} file used to build Octo \gitlab{src/CMakeLists.txt}.
 
 \appendix
 \appendixpage
