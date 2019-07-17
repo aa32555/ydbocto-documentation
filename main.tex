@@ -3,10 +3,11 @@
 \usepackage{listings}
 \usepackage{appendix}
 \usepackage{hyperref}
+\usepackage{graphicx}
 
 % This is only possible with lualatex
-%\usepackage{fontspec}
-%\setmainfont[Ligatures=TeX]{Raleway}
+\usepackage{fontspec}
+\setmainfont[Ligatures=TeX]{Raleway}
 
 \def\code#1{\texttt{#1}}
 
@@ -52,6 +53,8 @@ For now, just know that it is glue connecting the underlying M database to the r
 \section{Background Information}
 
 % We should write something describing M globals here
+
+\subsection{Mapping Non-relational Schemas to Relations} \label{sec:background_mapping}
 
 \section{Parsing} \label{sec:parsing}
 
@@ -158,7 +161,20 @@ Then we begin filling out for each remaining state.
 
 As we transition from state to state, we also 'shift' tokens off of the parse stream.
 This effectively consumes the token, and advances to the next rule.
-If we had a situation where 
+
+The last thing to note is that the LALR contributes to the general LR algorithm by merging states, which reduces code size and execution time.
+The same rules apply for understanding shift/reduce and reduce/reduce errors.
+See figure \ref{fig:parser_generated_graph} for the generated state diagram of the grammar given in listing \ref{fig:parser_sample_calc_grammar}.
+
+\begin{figure}
+	\begin{center}
+		\makebox[\textwidth]{
+			\includegraphics[width=.8\paperwidth]{figures/parsing_generated_graph.png}
+		}
+	\end{center}
+	\label{fig:parser_generated_graph}
+	\caption{Generated LALR state machine for sample grammar}
+\end{figure}
 
 %% TODO: charles isn't done here, and there are a few errors above
 
@@ -338,6 +354,31 @@ The source files in Octo related to this phase are located under \code{src/optim
 	\item \code{src/optimization\_transforms/lp\_optimize\_where\_multi\_equals\_ands.c}
 	\item \code{src/optimization\_transforms/lp\_generate\_xref\_keys.c}
 \end{itemize}
+
+\subsection{Relationship Between Keys, Tables, and Columns}
+
+Although not strictly part of optimizing the logical plan, understanding the relationship between tables, keys, and columns is needed to understand much of the optimization work.
+In this section we try to clarify some of these terms, and provide enlightenment regarding how they are used and the expectations surrounding them.
+
+When a table reference is parsed as part of a SQL statement (such as in the table-list of a SQL statement), we instantiate that table with unique identifier.
+The need for this unique identifier is explained elsewhere, but to recap, it is needed to allow queries which reference the same table multiple times, and to more clearly associate keys with specific table aliases.
+This value is stored in a \code{SqlTableAlias} structure \gitlab{src/octo\_types.h}, and populated during the reduction phase of each item in the table list \gitlab{src/parser/select.y}.
+
+When we convert the table list to a sequence of keys to iterate on (see the explanation of keys in section \ref{sec:background_mapping}), we grab all the keys for a given table alias and insert them into the \code{LP\_KEYS} section of the logical plan, and assigning them the unique id belonging to the source table.
+Later stages (in particular, \code{OUTER JOIN}s), may update the unique key to ensure uniqueness among generated plans, but it will also update all references to that unique id in all needed places in the logical plan.
+
+The ordering of these unique ids is not promised, nor is it promised that they will be in a contiguous range.
+They are unique, but only to the table instatiation; if that table has multiple keys (i.e., it uses a composite key to access data), there will be multiple keys with the same unique id.
+
+When the physical plan gets rendered, this unique identifier is used within the \code{\%ydboctocursor} structure to track the value of the keys as we iterate over them.
+When we want to fetch a value for a column which is not a key (including a cross reference key), we render some M code which is responsible for fetching the value \gitlab{src/m\_templates/tmpl\_column\_reference.ctemplate}; this will pull in various bits of information from the DDL which is responsible for informing Octo about how to get the value out of the database.
+
+For much of the work done in the fist optimizations (equjoin optimizations, use of the cross-reference, and inequality optimizations) we rely on the order of the keys in the \code{LP\_KEYS} listing to prioritize which keys get fixed.
+Generally, it is not possible to fix a key to a value which is not yet defined; in the logical plan, we can identify keys that will be available by looking at their ordering in the \code{LP\_KEYS} section.
+To facilitate this, a table is created during the optimization phase which maps a unique id to its position in that list \gitlab{src/optimization\_transforms/lp\_optimize\_where\_multi\_equals\_ands.c}.
+However, the only keys known at this point are the keys beloning to this subplan, which means that if there are references to a parent query, we will see an undefined value in this table.
+To solve this, we initialize this table to a small value, indicating that any keys not found in the table will be available before whatever keys we are fixing.
+This is true since any plans including references to parent plans will be deferred during physical plan generation, as required to actually access the columns using the means discussed above.
 
 \section{Physical Planning} \label{sec:physical}
 

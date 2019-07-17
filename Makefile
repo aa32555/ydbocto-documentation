@@ -1,7 +1,7 @@
 all: targets
-	pdflatex main.tex
+	lualatex main.tex
 	bibtex main
-	pdflatex main.tex
+	lualatex main.tex
 html: targets
 	htlatex main
 	bibtex main
