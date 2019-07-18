@@ -1,0 +1,7 @@
+^users("zero cool", "id")=0
+^users("zero cool", "password")="e0d97534e77671a12012a9a1effc3bda"
+^users("zero cool", "username")=2
+^users("zero cool", "username", 0)="dade murphy"
+^users("zero cool", "username", 1)="crash override"
+^users("zero cool", "username", 2)="zero cool"
+

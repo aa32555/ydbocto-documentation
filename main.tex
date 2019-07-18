@@ -4,10 +4,13 @@
 \usepackage{appendix}
 \usepackage{hyperref}
 \usepackage{graphicx}
+\usepackage{iftex}
 
 % This is only possible with lualatex
-\usepackage{fontspec}
-\setmainfont[Ligatures=TeX]{Raleway}
+\ifLuaTeX
+	\usepackage{fontspec}
+	\setmainfont[Ligatures=TeX]{Raleway}
+\fi
 
 \def\code#1{\texttt{#1}}
 
@@ -52,7 +55,48 @@ For now, just know that it is glue connecting the underlying M database to the r
 
 \section{Background Information}
 
-% We should write something describing M globals here
+The purpose of Octo is to provide SQL functionality for YottaDB, a NoSQL data store.
+YottaDB has a long heritage, starting as Greystone Technology MUMPS (GT.M) in the 1980's.
+As a result, there is a vast sea of data already stored in YottaDB and it's relatives, which is so far mostly unaccessible by normal data analytics tooling.
+Although there are some solutions out there which give access, their connectivity to broader toolsets is questionable, and in some cases the dialect is so different than the SQL standards (since many of these tools were written pretty early on) that is surprising to clients.
+There is also a matter of cost and openness; none of the existing solutions are open source, and so are difficult to obtain for use with open source systems written on top of YottaDB (such as the VistA EHR system).
+
+In short, Octo solves the problem of allowing SQL and relational access to a traditionally non-relational database.
+It allows connectivity by implementing the Postgres wire protocol, giving users access to a whole suite of tools.
+One of the more theoretically challenging aspects of this project is envisioning the mapping from the YottaDB NoSQL datastore to a relational model.
+In this section, we will delve into some of the requirements of this mapping, and how they were solved.
+
+\subsection{YottaDB Globals}
+
+In YottaDB, a global refers to a key-value which is persisted to disk and managed by the underlying database.
+A global is a collection of keys, and their associated value.
+For example, we might see a global that looks like $myGlobal$\footnote{For a global to get persisted in YottaDB, it must be prefixed by a \^, otherwise it is considered a local and will vanish when the process gets shutdown. It should be noted that locals are actually global in scope to an application, as are locals, and instead the terminology refers to the availability of the key-value in respect to other processes on the system using the same YottaDB installation} get assigned the value $5$.
+
+It is important to know that YottaDB is a hierarchical key value store; so a key does not consist of just one string, but a series of strings.
+The relationship between these series of strings is hierarchical; in we say that the second string is a subscript of the first.
+Using this nomenclature, we gain the ability to iterate through all subscripts of a given key.
+This means we get a value from a key, AND iterate through all the subscripts of that key.
+These two dimensions of data in YottaDB is relatively unique, and leads to some of the interesting problems we might see within data stores that our general solution to mapping needs to solve.
+
+Below, we give some sample data to look at.
+This data is organized in a quick-to-write form which resembles the form used by the M programming language.
+The form is roughly $subscript0(subscript1,subscript2,subscript3)$, however, $subscript0$ has special meaning to some underlying database stuff.
+It is often referred to as a global, even though the entire list of elements is also considered a global.
+So, we might see something like $myGlobal=5$, and $myGlobal("mySubscript")=15$.
+In this case, $myGlobal$ now has a value of 5, and a subscript name $mySubscript$ which has a value of 15.
+
+Consider listing \ref{fig:background_user_example}.
+In this figure, we create a YottaDB schema to store user, with a id, password and username, then a list of secondary user aliases.
+Representing this as relational schema is not straight forward, but this is type of use allows us to easily query the database for the existence of a particular user.
+Other tasks, such as fetching a user by id, is much harder.
+This where a SQL engine would come in handy; it can not search for a particular field in the model in question, constructing cross references if needed.
+
+\lstinputlisting[caption={Sample user global},label=fig:background_user_example]{figures/background_user_example.txt}
+
+The theory is that as long as we can iterate through values in the database, and known how to fetch a specific column from the database, we can construct a relational database.
+It may not always be perfectly normalized, nor normalized, but it will be functional.
+Take the data in listing \ref{sec:background_mapping}; we can see that there is a 'users' table, which can stand by itself in a relational database, and a set of alternate user names, which would be a separate table in a relational database.
+
 
 \subsection{Mapping Non-relational Schemas to Relations} \label{sec:background_mapping}
 
@@ -63,7 +107,7 @@ SQL has a standard, formalized by the American National Standards Institute, wit
 One of the most common target standard versions is SQL-92 (the 1992 standard), as this includes most of what people expect from SQL, but is not too complicated.
 Octo aims to be compatible with this version, using SQL: The Standard Handbook \cite{cannan1993sql} as a reference manual, with the primary source for the grammar described at \url{https://github.com/ronsavage/SQL/blob/master/sql-92.bnf}\cite{ronsavage2003sql}.
 However, this grammar includes some structures which are not friendly towards the parsing generator selected, so the grammar was refactored in places to prevent parsing errors.
-For the current grammar, look at \gitlab{src/parser/parser.y}.
+For the current grammar, look at \gitlab{src/parser.y}.
 
 The initial time frame for getting a working prototype did not allow for the development of a recursive descent parser, and performance concerns did not allow the use of newer parse-tree parsers (such as ANTLR \cite{parr2013definitive} \footnote{There is some contention about ANTLR vs Bison performance, and a judgement call was made based on small performance tests and community discussion}, and overall generalized LR parsers \cite{lang1974deterministic}).
 This, along with other constraints imposed by the development environment, forced Octo into using a C toolchain, which requires using tools such as YACC/Bison and Flex over more modern solutions.
@@ -86,6 +130,8 @@ To understand the algorithm, we need to know a few terms.
 	\item Rule -- Anything that is not a token in the grammar is a rule. A rule contains subrules, which can recurse or terminate in tokens. These are also known as non-terminating symbols.
 	\item $FOLLOW$ set -- Given a state, this is the list of tokens which can follow from this state.
 	\item $FIRST$ set -- The first token which may appear in the grammar.
+	\item $SHIFT$ -- this term is a verb which indicates we are going to move one or more tokens into the stack, and transition to the next state
+	\item $REDUCE$ -- this term indicates that a complete rule has been matched, and we can pop some tokens from the stack and run any rules associated with the matched rule
 \end{itemize}
 
 \lstinputlisting[
