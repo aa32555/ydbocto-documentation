@@ -353,7 +353,7 @@ This problem is the NP-complete problem generally accepted as the boolean satisf
 Octo generates cross references to assist with performing optimization on columns which aren't keys, and aren't normally involved in iterating over the table.
 It does this by constructing a new value in the database, with the form described in listing \ref{fig:lp_lastname_xref}.
 
-The global name, \code{\%ydbocroxref}, is followed by the name of the table the cross reference is for.
+The global name, \code{\%ydboctoxref}, is followed by the name of the table the cross reference is for.
 After that comes the name of the column within that table.
 The value of this node is the total count of the rows in the table.
 Next, for each unique value of that column within the table, we have a node with the total number of rows which match that column value.
@@ -406,7 +406,7 @@ The source files in Octo related to this phase are located under \code{src/optim
 Although not strictly part of optimizing the logical plan, understanding the relationship between tables, keys, and columns is needed to understand much of the optimization work.
 In this section we try to clarify some of these terms, and provide enlightenment regarding how they are used and the expectations surrounding them.
 
-When a table reference is parsed as part of a SQL statement (such as in the table-list of a SQL statement), we instantiate that table with unique identifier.
+When a table reference is parsed as part of a SQL statement (such as in the table-list of a SQL statement), we instantiate that table with a unique identifier.
 The need for this unique identifier is explained elsewhere, but to recap, it is needed to allow queries which reference the same table multiple times, and to more clearly associate keys with specific table aliases.
 This value is stored in a \code{SqlTableAlias} structure \gitlab{src/octo\_types.h}, and populated during the reduction phase of each item in the table list \gitlab{src/parser/select.y}.
 
@@ -414,7 +414,7 @@ When we convert the table list to a sequence of keys to iterate on (see the expl
 Later stages (in particular, \code{OUTER JOIN}s), may update the unique key to ensure uniqueness among generated plans, but it will also update all references to that unique id in all needed places in the logical plan.
 
 The ordering of these unique ids is not promised, nor is it promised that they will be in a contiguous range.
-They are unique, but only to the table instatiation; if that table has multiple keys (i.e., it uses a composite key to access data), there will be multiple keys with the same unique id.
+They are unique, but only to the table instantiation; if that table has multiple keys (i.e., it uses a composite key to access data), there will be multiple keys with the same unique id.
 
 When the physical plan gets rendered, this unique identifier is used within the \code{\%ydboctocursor} structure to track the value of the keys as we iterate over them.
 When we want to fetch a value for a column which is not a key (including a cross reference key), we render some M code which is responsible for fetching the value \gitlab{src/m\_templates/tmpl\_column\_reference.ctemplate}; this will pull in various bits of information from the DDL which is responsible for informing Octo about how to get the value out of the database.
@@ -428,7 +428,7 @@ This is true since any plans including references to parent plans will be deferr
 
 \section{Physical Planning} \label{sec:physical}
 
-Octo outputs a M routine, which is later compiled down to bitcode and executed via the M runtime built in with YottaDB.
+Octo outputs an M routine, which is later compiled down to bitcode and executed via the M runtime built in with YottaDB.
 The output of this program is a global variable containing the final result set for the query in question, stored in a normalized fashion.
 
 To generate these M files, we take logical plans which have nested queries and generate a thin wrapping for each \code{LP\_INSERT} type which describes things like how we should store the output, whether or not we need to emit code to handle SET operations, puts easy-to-access pointers to the projection list, iteration keys, order by list, and additional keys.
