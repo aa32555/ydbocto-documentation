@@ -57,7 +57,7 @@ For now, just know that it is glue connecting the underlying M database to the r
 
 The purpose of Octo is to provide SQL functionality for YottaDB, a NoSQL data store.
 YottaDB has a long heritage, starting as Greystone Technology MUMPS (GT.M) in the 1980's.
-As a result, there is a vast sea of data already stored in YottaDB and it's relatives, which is so far mostly unaccessible by normal data analytics tooling.
+As a result, there is a vast sea of data already stored in YottaDB and its relatives, which is mostly inaccessible by normal data analytics tooling so far.
 Although there are some solutions out there which give access, their connectivity to broader toolsets is questionable, and in some cases the dialect is so different than the SQL standards (since many of these tools were written pretty early on) that is surprising to clients.
 There is also a matter of cost and openness; none of the existing solutions are open source, and so are difficult to obtain for use with open source systems written on top of YottaDB (such as the VistA EHR system).
 
@@ -73,10 +73,10 @@ A global is a collection of keys, and their associated value.
 For example, we might see a global that looks like $myGlobal$\footnote{For a global to get persisted in YottaDB, it must be prefixed by a \^, otherwise it is considered a local and will vanish when the process gets shutdown. It should be noted that locals are actually global in scope to an application, as are locals, and instead the terminology refers to the availability of the key-value in respect to other processes on the system using the same YottaDB installation} get assigned the value $5$.
 
 It is important to know that YottaDB is a hierarchical key value store; so a key does not consist of just one string, but a series of strings.
-The relationship between these series of strings is hierarchical; in we say that the second string is a subscript of the first.
+The relationship between these series of strings is hierarchical; the second string is a subscript of the first.
 Using this nomenclature, we gain the ability to iterate through all subscripts of a given key.
-This means we get a value from a key, AND iterate through all the subscripts of that key.
-These two dimensions of data in YottaDB is relatively unique, and leads to some of the interesting problems we might see within data stores that our general solution to mapping needs to solve.
+This means we get a value from a key AND iterate through all the subscripts of that key.
+These two dimensions of data in YottaDB are relatively unique, and lead to some of the interesting problems we might see within data stores that our general solution to mapping needs to solve.
 
 Below, we give some sample data to look at.
 This data is organized in a quick-to-write form which resembles the form used by the M programming language.
@@ -86,17 +86,16 @@ So, we might see something like $myGlobal=5$, and $myGlobal("mySubscript")=15$.
 In this case, $myGlobal$ now has a value of 5, and a subscript name $mySubscript$ which has a value of 15.
 
 Consider listing \ref{fig:background_user_example}.
-In this figure, we create a YottaDB schema to store user, with a id, password and username, then a list of secondary user aliases.
-Representing this as relational schema is not straight forward, but this is type of use allows us to easily query the database for the existence of a particular user.
-Other tasks, such as fetching a user by id, is much harder.
-This where a SQL engine would come in handy; it can not search for a particular field in the model in question, constructing cross references if needed.
+In this figure, we create a YottaDB schema to store a user, with an id, password and username, then a list of secondary user aliases.
+Representing this as relational schema is not straight forward, but this type of use allows us to easily query the database for the existence of a particular user.
+Other tasks, such as fetching a user by id, are much harder.
+This is where a SQL engine would come in handy: it cannot search for a particular field in the model in question, constructing cross references if needed.
 
 \lstinputlisting[caption={Sample user global},label=fig:background_user_example]{figures/background_user_example.txt}
 
-The theory is that as long as we can iterate through values in the database, and known how to fetch a specific column from the database, we can construct a relational database.
+The theory is that as long as we can iterate through values in the database, and know how to fetch a specific column from the database, we can construct a relational database.
 It may not always be perfectly normalized, nor normalized, but it will be functional.
 Take the data in listing \ref{sec:background_mapping}; we can see that there is a 'users' table, which can stand by itself in a relational database, and a set of alternate user names, which would be a separate table in a relational database.
-
 
 \subsection{Mapping Non-relational Schemas to Relations} \label{sec:background_mapping}
 
