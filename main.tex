@@ -57,7 +57,7 @@ For now, just know that it is glue connecting the underlying M database to the r
 
 The purpose of Octo is to provide SQL functionality for YottaDB, a NoSQL data store.
 YottaDB has a long heritage, starting as Greystone Technology MUMPS (GT.M) in the 1980's.
-As a result, there is a vast sea of data already stored in YottaDB and it's relatives, which is so far mostly unaccessible by normal data analytics tooling.
+As a result, there is a vast sea of data already stored in YottaDB and its relatives, which is so far mostly unaccessible by normal data analytics tooling.
 Although there are some solutions out there which give access, their connectivity to broader toolsets is questionable, and in some cases the dialect is so different than the SQL standards (since many of these tools were written pretty early on) that is surprising to clients.
 There is also a matter of cost and openness; none of the existing solutions are open source, and so are difficult to obtain for use with open source systems written on top of YottaDB (such as the VistA EHR system).
 
@@ -99,7 +99,7 @@ Take the data in listing \ref{sec:background_mapping}; we can see that there is 
 
 \subsection{M globals used by Octo}
 
-Partially described in the user-deocumentation for Octo, Octo uses a few different globals to store information about session and query state.
+Partially described in the user-documentation for Octo, Octo uses a few different globals to store information about session and query state.
 Note that as there is no way to enforce the shape of the schema in M, these globals are subject to change that will not easily be detected beyond manual review and verification.
 
 Note that each of the globals below is prefixed by the \code{octo\_global\_prefix} defined in the user configuration.
@@ -111,7 +111,7 @@ Below, all uppercase strings represent items which will be replaced by a value d
 	\begin{itemize}
 		\item \code{octo("functions", "FUNCTION NAME")="\$\$FUNCTION"} -- stores mappings for function names to backing M code
 		\item \code{octo("oid")=5902} -- used to generate unique object identifiers for tables related to the data catalogs
-		\item \code{octo("plan\_metadata", "FILEPATH")} -- used to store a list of columns for a generated plan which can be resused. Underneath, we have the name of the column, data type, and size
+		\item \code{octo("plan\_metadata", "FILEPATH")} -- used to store a list of columns for a generated plan which can be reused. Underneath, we have the name of the column, data type, and size
 		\begin{itemize}
 			\item \code{octo("plan\_metadata", "FILEPATH", "output\_columns", "1", "column\_id")} -- column OID as defined by Postgres; currently hard-coded to 0 in all cases
 			\item \code{octo("plan\_metadata", "FILEPATH", "output\_columns", "1", "data\_type")} -- column data type as defined by Postgres; currently hard-coded to values corresponding to VARCHAR or INTEGER
@@ -123,7 +123,7 @@ Below, all uppercase strings represent items which will be replaced by a value d
 		\item \code{octo("tables")} -- values for all the 'default' tables used by Octo, including the octoOneRow
 		\item \code{octo("users")=1} -- under this subscript is a list users who can authenticated against the database. The value portion is the ID of the last user in the database
 		\begin{itemize}
-			\item \code{octo("users", "USERNAME")="ID|USERNAME|||||||||md5....|"} -- the username is encoded as a subscript to allow fast lookup. The resulting row is stored as a pipe-delimited series of values, with the username, id, and password. The password is a salted and MD5 hash of the users password, confirming to the same system Postgres uses to store and authenticate it's users (so we can be compatible with Postgres clients)
+			\item \code{octo("users", "USERNAME")="ID|USERNAME|||||||||md5....|"} -- the username is encoded as a subscript to allow fast lookup. The resulting row is stored as a pipe-delimited series of values, with the username, id, and password. The password is a salted and MD5 hash of the users password, confirming to the same system Postgres uses to store and authenticate its users (so we can be compatible with Postgres clients)
 		\end{itemize}
 		\item \code{octo("xref\_status","TABLE NAME","COLUMN NAME")="done"} -- if present, indicates that a cross reference has been generated for the given table/column, and that it is being maintained by database triggers
 	\end{itemize}
@@ -137,21 +137,21 @@ Below, all uppercase strings represent items which will be replaced by a value d
 	\item \code{cursor} -- stores information related to executing a particular query, namely a list of the keys being used to iterate and information used to implement SET operations and/or DISTINCT operators
 	\begin{itemize}
 		\item \code{cursor("CURSOR ID")} -- has no data, but is unique for each query
-		\item \code{cursor("CURSOR ID", "keys", "KEY ID", "TABLE NAME", "COLUMN NAME")} -- this organization is used to store the value of a particular key for a table as we iterate through it; the key id going to be unique amongst all tables, but will be shared between which all belong to the same table. Note that the output key for a query does not have a table or column name, so requires NULL subscripts be enabled
-		\item \code{cursor("CURSOR ID", "dupl", "KEY ID", "KEY VALUE", ...)} -- when Octo converts and expressions to DNF, it must prevent duplicates from appearing in the final result set. It does this by maintaining this element, which contains the key ID and all values from the key to ensure that the emitted value is unique for a given set of keys
+		\item \code{cursor("CURSOR ID", "keys", "KEY ID", "TABLE NAME", "COLUMN NAME")} -- this organization is used to store the value of a particular key for a table as we iterate through it; the key id is going to be unique amongst all tables, but will be shared between which all belong to the same table. Note that the output key for a query does not have a table or column name, so requires NULL subscripts be enabled.
+		\item \code{cursor("CURSOR ID", "dupl", "KEY ID", "KEY VALUE", ...)} -- when Octo converts expressions to DNF, it must prevent duplicates from appearing in the final result set. It does this by maintaining this element, which contains the key ID and all values from the key to ensure that the emitted value is unique for a given set of keys
 		\item \code{cursor("CURSOR ID", "index", "COLUMN", ...)} -- when emitting a SET operation, we must maintain a list of values which have been emitted. This allows us to prevent inserting duplicates to the result set. This index is used in a variety of ways which is particular to the type of SET operation being performed (UNION, INTERSECT, EXCEPT)
 	\end{itemize}
 	\item \code{xref} -- all cross references are stored under this global, organized by table and column.
 	\begin{itemize}
-		\item \code{xref("TABLE NAME", "COLUMN NAME")="NUMBER OF ROWS IN TABLE"} -- the value of the table name is total number of rows in the total, which should be fairly accurate as triggers maintain the count if values are added or deleted
-		\item \code{xref("TABLE NAME", "COLUMN NAME", "VALUE")="NUMBER OF ROWS WITH GIVEN VALUE"} -- the value of this global is the number of rows which have a value specified by VALUE
-		\item \code{xref("TABLE NAME", "COLUMN NAME", "VALUE", "KEY1", ...)} -- Following the value is a list of key values for each key component of the table
+		\item \code{xref("TABLE NAME", "COLUMN NAME")="NUMBER OF ROWS IN TABLE"} -- the value of the table name is the number of rows in the total, which should be fairly accurate as triggers maintain the count if values are added or deleted.
+		\item \code{xref("TABLE NAME", "COLUMN NAME", "VALUE")="NUMBER OF ROWS WITH GIVEN VALUE"} -- the value of this global is the number of rows which have a value specified by VALUE.
+		\item \code{xref("TABLE NAME", "COLUMN NAME", "VALUE", "KEY1", ...)} -- Following the value is a list of key values for each key component of the table.
 	\end{itemize}
 	\item \code{schema} -- this global stores information about the tables defined for use by Octo. Generally, the data under this global won't be useful without knowledge of the internal data structures used by Octo.
 	\begin{itemize}
-		\item \code{schema("TABLE NAME")="TABLE DDL"} -- All data for a table is stored under it's name, allowing for fast lookup. The value of this node is the raw text representation of the schema, which can be reparsed as needed to reconstruct the binary representation
-		\item \code{schema("TABLE NAME", "b")="TOTAL SIZE OF BINARY TABLE"} -- the value under this node is the total size of the binary representation of the table. Under this node, there will be $totalSizeOfBinaryTable \div \code{MAX\_STR\_CONST}$ elements, ordered using sequential numbers
-		\item \code{schema("TABLE NAME", "b", "ID")="BINARY DATA"} -- the value of this node is a part of the binary representation of the table, converted to a relative addressing scheme. Octo will pull this into a buffer, then convert the relative addresses to absolute addresses and use it in place
+		\item \code{schema("TABLE NAME")="TABLE DDL"} -- All data for a table is stored under its name, allowing for fast lookup. The value of this node is the raw text representation of the schema, which can be reparsed as needed to reconstruct the binary representation
+		\item \code{schema("TABLE NAME", "b")="TOTAL SIZE OF BINARY TABLE"} -- the value under this node is the total size of the binary representation of the table. Under this node, there will be $totalSizeOfBinaryTable \div \code{MAX\_STR\_CONST}$ elements, ordered using sequential numbers.
+		\item \code{schema("TABLE NAME", "b", "ID")="BINARY DATA"} -- the value of this node is a part of the binary representation of the table, converted to a relative addressing scheme. Octo will pull this into a buffer, then convert the relative addresses to absolute addresses and use it in place.
 	\end{itemize}
 \end{itemize}
 
@@ -517,43 +517,43 @@ C template files are compiled using the parser executable, which is defined in t
 
 The templates are a combination of the template language and C macros.
 The macros assist with ensuring that variables used to track the current position in the output buffer are correctly passed between template files, and that error checks are to prevent buffer overflows and other such nonsense.
-The key macros are
+The key macros are:
 \begin{itemize}
-	\item \code{TEMPLATE}, which takes a template name and a list of parameters and produces a C prototype
-	\item \code{TMPL} which invokes a template with the specified arguments
-	\item \code{TEMPLATE\_INIT} which allocates some local variables used in the template code emitted by pparser
-	\item \code{TEMPLATE\_END} which returns from the template, updating any needed variables
+	\item \code{TEMPLATE}, which takes a template name and a list of parameters and produces a C prototype.
+	\item \code{TMPL} which invokes a template with the specified arguments.
+	\item \code{TEMPLATE\_INIT} which allocates some local variables used in the template code emitted by pparser.
+	\item \code{TEMPLATE\_END} which returns from the template, updating any needed variables.
 \end{itemize}
 
-All templates must return an integer, which is the number of bytes the wrote to the output buffer.
-Listing \ref{fig:tmpl_key.ctemplate.expanded.c} shows an example C template file after the macros have beed expanded \footnote{some macros included things like assert, which have been removed from this listing as they don't provide any value in comprehension. Included files have also been removed}
+All templates must return an integer, which is the number of bytes they wrote to the output buffer.
+Listing \ref{fig:tmpl_key.ctemplate.expanded.c} shows an example C template file after the macros have been expanded \footnote{some macros included things like assert, which have been removed from this listing as they don't provide any value in comprehension. Included files have also been removed.}
 
 Octo begins processing templates with \code{tmpl\_physical\_plan.ctemplate}\gitlab{src/m\_templates/tmpl\_physical\_plan.ctemplate}, which in turn invokes a number of sub templates to emit specific artifacts.
 
 \begin{itemize}
-	\item \code{src/m\_templates/tmpl\_column\_list\_combine.ctemplate}\gitlab{src/m\_templates/tmpl\_column\_list\_combine.ctemplate} -- produces M code coresponding to rendering a column list, joining the column list elements using M concatenation and a specified delimating character. NOTE: in addition to rendering the column list, this is also where the logic to work around line-length limitations in the underlying M engine exist. This is implemented by copying the 'start' of the expression into a new line the buffer, then continuing appending items to it. At the time of writing, this does mean that there is a bit of extra cruft in the first line of generated M code to simplify the task of combining these lines together. See listing \ref{fig:sample_tmpl_column_list_combine.ctemplate} an a concrete example of what this emitted code looks like
-	\item \code{src/m\_templates/tmpl\_column\_reference.ctemplate}\gitlab{src/m\_templates/tmpl\_column\_reference.ctemplate} -- this file is invoked to emit code which extracts a column from the database. It uses various pieces of metadata provided in the DDL to extract a particular value, wrapping it all in a \code{\$GET} call to ensure that NULL columns are handled correctly. Listing \ref{fig:sample_tmpl_column_list_combine.ctemplate} contains a few example of the emitted code, in the form of fetching columns from the names table for the ID, FIRSTNAME, and LASTNAME columns
-	\item \code{src/m\_templates/tmpl\_column\_reference\_trigger.ctemplate}\gitlab{src/m\_templates/tmpl\_column\_reference\_trigger.ctemplate} -- serving a purpose almost identical to \code{tmpl\_column\_reference.ctemplate}, this helper emits code used when constructing the arguments when setting up triggers. It differs from \code{tmpl\_column\_reference.ctemplate} in that it splits the pieces into arguments matching the \code{\$ZTRIGGER} specification, rather than emitting a single line to be used to pull values from the database
-	\item \code{src/m\_templates/tmpl\_duplication\_check.ctemplate}\gitlab{src/m\_templates/tmpl\_duplication\_check.ctemplate} -- this helper emits a boolean expression which verifies the current values of the  keys used in this plan have not been used previously to insert a value into the output. This is required after an expression has been converted to DNF, and a UNION ALL specified for all sub expressions
-	\item \code{src/m\_templates/tmpl\_emit\_source.ctemplate}\gitlab{src/m\_templates/tmpl\_emit\_source.ctemplate} -- this helper replaces the magic \code{keys()} expression used in expression within the DDL with the corresponding key for the table instatiation. This includes selecting the correct unique id, and emitting replacing column references if the column is not a key
-	\item \code{src/m\_templates/tmpl\_key\_advance.ctemplate}\gitlab{src/m\_templates/tmpl\_key\_advance.ctemplate} -- this helper is responsible for emitting code responsible for advancing across all rows in the database. It uses logic from the user specified DDL in some cases, and in some cases emits logic to make use of a generated cross reference
-	\item \code{src/m\_templates/tmpl\_key.ctemplate}\gitlab{src/m\_templates/tmpl\_key.ctemplate} -- emits code to reference a particular key
-	\item \code{src/m\_templates/tmpl\_key\_end.ctemplate}\gitlab{src/m\_templates/tmpl\_key\_end.ctemplate} -- emits logic to check if a key has reach 'the end' of it's run. This uses logic from the user specified DDL
-	\item \code{src/m\_templates/tmpl\_key\_source.ctemplate}\gitlab{src/m\_templates/tmpl\_key\_source.ctemplate} -- emits code which fetches the value of a key; this is a wrapper for \code{tmpl\_key.ctemplate} which also invokes any logic needed to resolve use of the cross reference
-	\item \code{src/m\_templates/tmpl\_key\_start.ctemplate}\gitlab{src/m\_templates/tmpl\_key\_start.ctemplate} -- emits code to deal with 'starting' the iteration of a key; this is usually just setting the key to an empty string, but in some cases users may override this in the DDL, and we use the user-supplied logic to start the iteration
-	\item \code{src/m\_templates/tmpl\_physical\_plan.ctemplate}\gitlab{src/m\_templates/tmpl\_physical\_plan.ctemplate} -- this is the driver for all other templates, and is described in more detail below
-	\item \code{src/m\_templates/tmpl\_print\_expression.ctemplate}\gitlab{src/m\_templates/tmpl\_print\_expression.ctemplate} -- emits code which represents a SQL expression, both boolean and arithmetic. It has entries to render specific types of SqlValue's, including function calls and other operators. This is also where different code gets emitted for different data types (as an example, a less than operator for a numeric expression, and a sorts before for a string comparison), completing the life cycle of Octo's notions of data types. After this point, any differences in behavior compared to expected is likely a quirk of the underlying M implementation, and will require tweaks to work around
-	\item \code{src/m\_templates/tmpl\_temp\_key\_advance.ctemplate}\gitlab{src/m\_templates/tmpl\_temp\_key\_advance.ctemplate} -- emits code for a temporary (output) key
+	\item \code{src/m\_templates/tmpl\_column\_list\_combine.ctemplate}\gitlab{src/m\_templates/tmpl\_column\_list\_combine.ctemplate} -- produces M code corresponding to rendering a column list, joining the column list elements using M concatenation and a specified deliminating character. NOTE: In addition to rendering the column list, this is also where the logic to work around line-length limitations in the underlying M engine exist. This is implemented by copying the 'start' of the expression into a new line in the buffer, then continuing to append items to it. At the time of writing, this does mean that there is a bit of extra cruft in the first line of generated M code to simplify the task of combining these lines together. See listing \ref{fig:sample_tmpl_column_list_combine.ctemplate} for a concrete example of what this emitted code looks like.
+	\item \code{src/m\_templates/tmpl\_column\_reference.ctemplate}\gitlab{src/m\_templates/tmpl\_column\_reference.ctemplate} -- this file is invoked to emit code which extracts a column from the database. It uses various pieces of metadata provided in the DDL to extract a particular value, wrapping it all in a \code{\$GET} call to ensure that NULL columns are handled correctly. Listing \ref{fig:sample_tmpl_column_list_combine.ctemplate} contains a few example of the emitted code, in the form of fetching columns from the names table for the ID, FIRSTNAME, and LASTNAME columns.
+	\item \code{src/m\_templates/tmpl\_column\_reference\_trigger.ctemplate}\gitlab{src/m\_templates/tmpl\_column\_reference\_trigger.ctemplate} -- serving a purpose almost identical to \code{tmpl\_column\_reference.ctemplate}, this helper emits code used when constructing the arguments when setting up triggers. It differs from \code{tmpl\_column\_reference.ctemplate} in that it splits the pieces into arguments matching the \code{\$ZTRIGGER} specification, rather than emitting a single line to be used to pull values from the database.
+	\item \code{src/m\_templates/tmpl\_duplication\_check.ctemplate}\gitlab{src/m\_templates/tmpl\_duplication\_check.ctemplate} -- this helper emits a boolean expression which verifies that the current values of the keys used in this plan have not been used previously to insert a value into the output. This is required after an expression has been converted to DNF, and a UNION ALL specified for all sub expressions.
+	\item \code{src/m\_templates/tmpl\_emit\_source.ctemplate}\gitlab{src/m\_templates/tmpl\_emit\_source.ctemplate} -- this helper replaces the magic \code{keys()} expression used in expression within the DDL with the corresponding key for the table instantiation. This includes selecting the correct unique id, and emitting replacement column references if the column is not a key.
+	\item \code{src/m\_templates/tmpl\_key\_advance.ctemplate}\gitlab{src/m\_templates/tmpl\_key\_advance.ctemplate} -- this helper is responsible for emitting code responsible for advancing across all rows in the database. It uses logic from the user specified DDL in some cases, and in some cases emits logic to make use of a generated cross reference.
+	\item \code{src/m\_templates/tmpl\_key.ctemplate}\gitlab{src/m\_templates/tmpl\_key.ctemplate} -- emits code to reference a particular key.
+	\item \code{src/m\_templates/tmpl\_key\_end.ctemplate}\gitlab{src/m\_templates/tmpl\_key\_end.ctemplate} -- emits logic to check if a key has reach 'the end' of its run. This uses logic from the user specified DDL.
+	\item \code{src/m\_templates/tmpl\_key\_source.ctemplate}\gitlab{src/m\_templates/tmpl\_key\_source.ctemplate} -- emits code which fetches the value of a key; this is a wrapper for \code{tmpl\_key.ctemplate} which also invokes any logic needed to resolve use of the cross reference.
+	\item \code{src/m\_templates/tmpl\_key\_start.ctemplate}\gitlab{src/m\_templates/tmpl\_key\_start.ctemplate} -- emits code to deal with 'starting' the iteration of a key; this is usually just setting the key to an empty string, but in some cases users may override this in the DDL, and we use the user-supplied logic to start the iteration.
+	\item \code{src/m\_templates/tmpl\_physical\_plan.ctemplate}\gitlab{src/m\_templates/tmpl\_physical\_plan.ctemplate} -- this is the driver for all other templates, and is described in more detail below.
+	\item \code{src/m\_templates/tmpl\_print\_expression.ctemplate}\gitlab{src/m\_templates/tmpl\_print\_expression.ctemplate} -- emits code which represents a SQL expression, both boolean and arithmetic. It has entries to render specific types of SqlValues, including function calls and other operators. This is also where different code gets emitted for different data types (as an example, a "less than" operator for a numeric expression, and a "sorts before" for a string comparison), completing the life cycle of Octo's notions of data types. After this point, any differences in behavior is likely a quirk of the underlying M implementation, and will require tweaks to work around.
+	\item \code{src/m\_templates/tmpl\_temp\_key\_advance.ctemplate}\gitlab{src/m\_templates/tmpl\_temp\_key\_advance.ctemplate} -- emits code for a temporary (output) key.
 
 \end{itemize}
 
 \subsection{Final Rendering of Physical Plan}
 
-In the end, a SQL query is rendered as a M file, which is later linked and executed to produce the resulting data set.
+In the end, a SQL query is rendered as an M file, which is later linked and executed to produce the resulting data set.
 The primary driver for this mechanism is \code{src/physical/emit\_physical\_plan.c}\gitlab{src/physical/emit\_physical\_plan.c}, which invokes \code{src/m\_templates/tmpl\_physical\_plan.ctemplate}\gitlab{src/m\_templates/tmpl\_physical\_plan.ctemplate} for each sub plan.
-Most of the logic \code{emit\_physical\_plan.c} is pretty straight forward; first emit cross reference plans, then emit normal plans, and lastly emit all deferred plans.
+Most of the logic \code{emit\_physical\_plan.c} is pretty straightforward; first emit cross reference plans, then emit normal plans, and lastly emit all deferred plans.
 
-\code{/tmpl\_physical\_plan.ctemplate} is where much of the logic for physical representation of the concepts of SQL occur.
+\code{/tmpl\_physical\_plan.ctemplate} is where much of the logic for the physical representation of SQL concepts occur.
 Generally, it follows the form of:
 
 \begin{enumerate}
@@ -564,22 +564,22 @@ Generally, it follows the form of:
 		\item If needed, a \code{LP\_KEY\_FIX} section, followed by a condition to verify that the fixed value exists
 		\item A loop to iterate over the key
 		\item An advance statement which moves the key forward to the next iteration
-		\item A QUIT statement which exits the loop after the key has reached it's end condition 
+		\item A QUIT statement which exits the loop after the key has reached its end condition 
 	\end{enumerate}
 	\item After the last key, we emit code responsible for taking 'action' based on the plan. There are a few different 'sets' of code which can be emitted, depending on the type of plan being rendered. These include:
 	\begin{itemize}
-		\item SET operations
-		\item Plans which include a ORDER BY clause
-		\item Plans which include the DISTINCT operator
+		\item SET operations.
+		\item Plans which include a ORDER BY clause.
+		\item Plans which include the DISTINCT operator.
 	\end{itemize}
-	\item If needed, additional logic to implement the INTERSECT set operation
-	\item Logic to actually reorder the result set if ORDER BY was provided so that final result set conforms to the expectations of the next plan or stage (namely, the final result set should be just a series of values, with no further shape to the data)
-	\item A call to the next plan to execute
-	\item Additional labels which may contain code related to maintaining triggers. This section will only exist in the XREF files
+	\item If needed, additional logic to implement the INTERSECT set operation.
+	\item Logic to actually reorder the result set if ORDER BY was provided so that final result set conforms to the expectations of the next plan or stage (namely, the final result set should be just a series of values, with no further shape to the data).
+	\item A call to the next plan to execute.
+	\item Additional labels which may contain code related to maintaining triggers. This section will only exist in the XREF files.
 \end{enumerate}
 
-Listing \ref{fig:physical_sample_plan.m} shows an annotaed plan generated from the command \code{SELECT * FROM names WHERE firstName = 'Zero' OR lastName = 'Burn' ORDER BY lastName UNION ALL SELECT * FROM names WHERE firstName = 'Joey'}.
-Note that there are many permutations of plans possible, and invidual aspects of a SQL query will change the exact details of the generated code.
+Listing \ref{fig:physical_sample_plan.m} shows an annotated plan generated from the command \code{SELECT * FROM names WHERE firstName = 'Zero' OR lastName = 'Burn' ORDER BY lastName UNION ALL SELECT * FROM names WHERE firstName = 'Joey'}.
+Note that there are many permutations of plans possible, and individual aspects of a SQL query will change the exact details of the generated code.
 Of particular interest are plans which use SET operations, OUTER JOINS, DISTINCT, ORDER BY, or GROUP BY expressions.
 
 
