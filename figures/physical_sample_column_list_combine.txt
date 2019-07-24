@@ -1,0 +1,3 @@
+^|"yottadb.gld"|%ydboctocursor(cursorId,"keys",0,"NAMES","ID")_"|"
+_$PIECE($GET(^names(^|"yottadb.gld"|%ydboctocursor(cursorId,"keys",0,"NAMES","ID"))),"|",2)_"|"
+_$PIECE($GET(^names(^|"yottadb.gld"|%ydboctocursor(cursorId,"keys",0,"NAMES","ID"))),"|",3)
